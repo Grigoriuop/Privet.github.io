@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>РКН Симулятор — Крути рулетку блокировок</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Tahoma,sans-serif; }
+body {
+  background: linear-gradient(135deg,#0b1e3f,#13294b 40%,#1a0f2e);
+  color:#e8eef7; min-height:100vh; padding:20px;
+  transition: background .5s;
+}
+/* 🥚 Пасхалка: фон меняется при включении */
+body.egg-active {
+  background: linear-gradient(135deg,#2d0b3f,#4b1358 40%,#5b0f2e);
+}
+.container { max-width:1100px; margin:0 auto; }
+
+header {
+  text-align:center; padding:20px; border-bottom:2px solid #2e4a7d;
+  margin-bottom:20px; user-select:none;
+  transition: border-color .3s;
+}
+body.egg-active header { border-color:#a855f7; }
+header h1 {
+  font-size:2.2em; color:#ffd700;
+  text-shadow:0 0 15px rgba(255,215,0,.6);
+  letter-spacing:2px;
+  cursor:pointer;
+  transition: all .3s;
+}
+body.egg-active header h1 {
+  color:#e879f9;
+  text-shadow:0 0 25px rgba(232,121,249,.9), 0 0 50px rgba(168,85,247,.5);
+  animation: eggPulse 2s infinite;
+}
+@keyframes eggPulse {
+  0%,100% { transform:scale(1); }
+  50% { transform:scale(1.03); }
+}
+header .sub { color:#8aa9d6; margin-top:6px; font-size:.95em; }
+body.egg-active header .sub { color:#d8b4fe; }
+
+.stats {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+  margin-bottom:20px;
+}
+@media (max-width:700px){ .stats{grid-template-columns:repeat(2,1fr);} }
+.stat {
+  background:rgba(30,55,95,.6); border:1px solid #2e4a7d;
+  border-radius:10px; padding:12px; text-align:center;
+  backdrop-filter: blur(8px);
+  transition: all .3s;
+}
+body.egg-active .stat {
+  background:rgba(75,19,88,.5);
+  border-color:#a855f7;
+}
+.stat .label { font-size:.78em; color:#8aa9d6; text-transform:uppercase; letter-spacing:1px; }
+.stat .value { font-size:1.4em; font-weight:bold; color:#ffd700; margin-top:5px; }
+.stat.kids .value { color:#4ade80; }
+.stat.kids { border-color:#4ade80; box-shadow:0 0 15px rgba(74,222,128,.3); }
+.stat.unb .value { color:#4a9eff; }
+.stat.unb { border-color:#4a9eff; box-shadow:0 0 15px rgba(74,158,255,.3); }
+
+.main-grid {
+  display:grid; grid-template-columns:2fr 1fr; gap:20px;
+  align-items:start;
+}
+@media (max-width: 900px){ .main-grid { grid-template-columns:1fr; } }
+
+.tabs { display:flex; gap:8px; margin-bottom:12px; }
+.tab {
+  flex:1; text-align:center; padding:12px;
+  background:rgba(10,25,50,.8); border:2px solid #2e4a7d;
+  border-radius:10px; cursor:pointer; transition:all .15s;
+  font-weight:bold; color:#8aa9d6; font-size:.95em;
+  position:relative;
+}
+.tab:hover { border-color:#4a9eff; color:#e8eef7; }
+.tab.active {
+  border-color:#ffd700; color:#ffd700;
+  background:rgba(255,215,0,.08);
+  box-shadow: 0 0 15px rgba(255,215,0,.3);
+}
+body.egg-active .tab.active {
+  border-color:#e879f9; color:#e879f9;
+  background:rgba(232,121,249,.1);
+  box-shadow: 0 0 15px rgba(232,121,249,.4);
+}
+.tab .badge {
+  position:absolute; top:-6px; right:-6px;
+  background:#e63946; color:#fff; font-size:.7em;
+  padding:2px 7px; border-radius:10px;
+  box-shadow:0 0 8px rgba(230,57,70,.7);
+}
+
+.panel { display:none; }
+.panel.active { display:block; animation: fadeIn .25s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+.roulette-box, .unblock-box {
+  background:rgba(20,40,75,.7); border:2px solid #2e4a7d;
+  border-radius:15px; padding:25px;
+  box-shadow: 0 0 30px rgba(46,74,125,.5);
+  transition: all .3s;
+}
+body.egg-active .roulette-box,
+body.egg-active .unblock-box {
+  background:rgba(75,19,88,.4);
+  border-color:#a855f7;
+  box-shadow: 0 0 30px rgba(168,85,247,.5);
+}
+.roulette-box { text-align:center; }
+
+.slot {
+  background:#050b18; border:3px solid #ffd700;
+  border-radius:12px; padding:30px 15px;
+  font-size:1.5em; font-weight:bold; color:#ffd700;
+  min-height:90px; display:flex; align-items:center; justify-content:center;
+  margin-bottom:20px;
+  box-shadow: inset 0 0 25px rgba(255,215,0,.3);
+  overflow:hidden;
+  transition: all .15s;
+}
+body.egg-active .slot {
+  border-color:#e879f9;
+  color:#e879f9;
+  box-shadow: inset 0 0 35px rgba(232,121,249,.5);
+}
+.slot.spinning { color:#4a9eff; border-color:#4a9eff; box-shadow: inset 0 0 25px rgba(74,158,255,.4); }
+.slot.win { animation: pop .5s; color:#ff3b3b; border-color:#ff3b3b; box-shadow: inset 0 0 35px rgba(255,59,59,.6); }
+.slot.win.real-win { color:#4a9eff; border-color:#4a9eff; box-shadow: inset 0 0 35px rgba(74,158,255,.7); }
+@keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
+
+.result-info {
+  min-height:60px; margin-bottom:15px; color:#c5d5ea; font-size:.95em;
+  line-height:1.5;
+}
+.result-info .reward { color:#4ade80; font-weight:bold; }
+.result-info .real-tag { color:#4a9eff; font-weight:bold; }
+.result-info .egg-tag { color:#e879f9; font-weight:bold; text-shadow:0 0 10px rgba(232,121,249,.7); }
+
+button {
+  background: linear-gradient(180deg,#e63946,#b21e2c);
+  color:#fff; border:none; padding:14px 30px;
+  font-size:1.1em; font-weight:bold; border-radius:10px;
+  cursor:pointer; letter-spacing:1px;
+  box-shadow: 0 4px 0 #7d0e1a, 0 6px 15px rgba(230,57,70,.5);
+  transition: all .1s;
+}
+button:hover:not(:disabled) { transform:translateY(-2px); box-shadow: 0 6px 0 #7d0e1a, 0 8px 20px rgba(230,57,70,.7); }
+button:active:not(:disabled) { transform:translateY(3px); box-shadow: 0 1px 0 #7d0e1a; }
+button:disabled { opacity:.5; cursor:not-allowed; filter:grayscale(.5); }
+
+.shop {
+  background:rgba(20,40,75,.7); border:2px solid #2e4a7d;
+  border-radius:15px; padding:20px;
+  transition: all .3s;
+}
+body.egg-active .shop {
+  background:rgba(75,19,88,.4);
+  border-color:#a855f7;
+}
+.shop h2 { color:#ffd700; margin-bottom:15px; font-size:1.3em; text-align:center; }
+body.egg-active .shop h2 { color:#e879f9; }
+.item {
+  background:rgba(10,25,50,.8); border:1px solid #2e4a7d;
+  border-radius:8px; padding:12px; margin-bottom:10px;
+  cursor:pointer; transition:all .15s;
+}
+.item:hover:not(.owned):not(.locked) { border-color:#ffd700; background:rgba(30,55,95,.9); }
+.item.owned { opacity:.5; border-color:#4ade80; cursor:default; }
+.item.locked { opacity:.4; cursor:not-allowed; }
+.item .name { font-weight:bold; color:#fff; font-size:.95em; }
+.item .desc { font-size:.78em; color:#8aa9d6; margin-top:3px; }
+.item .price { color:#ffd700; font-weight:bold; font-size:.85em; margin-top:5px; }
+
+.log {
+  margin-top:20px; background:rgba(5,15,30,.9);
+  border:1px solid #2e4a7d; border-radius:10px;
+  padding:15px; max-height:180px; overflow-y:auto;
+  font-family:'Consolas',monospace; font-size:.85em;
+  text-align:left;
+}
+.log h3 { color:#ffd700; margin-bottom:8px; font-size:1em; }
+.log-entry { padding:3px 0; border-bottom:1px dashed #1a2f52; color:#8aa9d6; }
+.log-entry .b { color:#ff5c5c; }
+.log-entry .r { color:#4a9eff; }
+.log-entry .k { color:#4ade80; }
+.log-entry .g { color:#4ade80; }
+.log-entry .y { color:#ffd700; }
+.log-entry .egg { color:#e879f9; font-weight:bold; }
+
+.unblock-box h2 { color:#4a9eff; margin-bottom:8px; font-size:1.3em; text-align:center; }
+.unblock-box .sub { text-align:center; color:#8aa9d6; font-size:.85em; margin-bottom:15px; }
+.blocked-list { max-height:450px; overflow-y:auto; padding-right:5px; }
+.blocked-item {
+  background:rgba(10,25,50,.8); border:1px solid #2e4a7d;
+  border-radius:8px; padding:12px; margin-bottom:8px;
+  cursor:pointer; transition:all .15s;
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+}
+.blocked-item:hover {
+  border-color:#4a9eff;
+  background:rgba(30,55,95,.9);
+  transform:translateX(3px);
+}
+.blocked-item.real { border-left:3px solid #4a9eff; }
+.blocked-item.kids-blocked { border-left:3px solid #4ade80; }
+.blocked-item .info { flex:1; min-width:0; }
+.blocked-item .bname {
+  font-weight:bold; color:#fff; font-size:.95em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.blocked-item .bmeta { font-size:.72em; color:#8aa9d6; margin-top:3px; }
+.blocked-item .bmeta .method { color:#ffd700; }
+.blocked-item .bmeta .reason { color:#ff9d9d; }
+.blocked-item .breward { font-size:.85em; font-weight:bold; color:#4ade80; white-space:nowrap; }
+.blocked-item .unlock-arrow { color:#4a9eff; font-size:1.2em; margin-left:5px; }
+
+.empty-state { text-align:center; padding:40px 20px; color:#8aa9d6; font-size:.95em; }
+.empty-state .big { font-size:3em; margin-bottom:10px; opacity:.5; }
+
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.8);
+  display:none; align-items:center; justify-content:center;
+  z-index:100; padding:20px; backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display:flex; animation: fadeIn .25s; }
+
+.modal {
+  background: linear-gradient(180deg,#13294b,#0b1e3f);
+  border:2px solid #ffd700; border-radius:15px;
+  max-width:800px; width:100%; max-height:90vh; overflow-y:auto;
+  padding:25px; box-shadow:0 0 50px rgba(255,215,0,.4);
+  animation: slideUp .3s;
+}
+body.egg-active .modal {
+  background: linear-gradient(180deg,#4b1358,#2d0b3f);
+  border-color:#e879f9;
+  box-shadow:0 0 50px rgba(232,121,249,.6);
+}
+.modal.unblock-modal { border-color:#4a9eff; box-shadow:0 0 50px rgba(74,158,255,.4); }
+.modal.unblock-modal h2 { color:#4a9eff; }
+.modal.unblock-modal .target-name {
+  color:#4a9eff; background:rgba(74,158,255,.1); border-color:rgba(74,158,255,.4);
+}
+@keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+.modal h2 {
+  color:#ffd700; text-align:center; margin-bottom:8px;
+  font-size:1.5em; letter-spacing:1px;
+}
+body.egg-active .modal h2 { color:#e879f9; }
+.modal .target-name {
+  text-align:center; font-size:1.2em; color:#ff5c5c;
+  font-weight:bold; margin-bottom:18px;
+  padding:10px; background:rgba(255,59,59,.1);
+  border-radius:8px; border:1px dashed rgba(255,59,59,.4);
+}
+.modal .target-name.real {
+  color:#4a9eff; background:rgba(74,158,255,.1); border-color:rgba(74,158,255,.4);
+}
+.modal .target-name small { display:block; color:#8aa9d6; font-weight:normal; font-size:.6em; margin-top:4px;}
+
+.section-title {
+  color:#8aa9d6; font-size:.85em; text-transform:uppercase;
+  letter-spacing:1.5px; margin:15px 0 8px;
+  display:flex; align-items:center; gap:8px;
+}
+.section-title::before { content:''; flex:1; height:1px; background:#2e4a7d; }
+.section-title::after { content:''; flex:1; height:1px; background:#2e4a7d; }
+
+.options-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+@media (max-width:600px){ .options-grid{grid-template-columns:1fr;} }
+
+.opt {
+  background:rgba(10,25,50,.8); border:2px solid #2e4a7d;
+  border-radius:10px; padding:12px; cursor:pointer;
+  transition:all .15s; position:relative;
+}
+.opt:hover { border-color:#4a9eff; background:rgba(30,55,95,.9); }
+.opt.selected { border-color:#ffd700; background:rgba(255,215,0,.1); box-shadow:0 0 15px rgba(255,215,0,.3); }
+.opt.kids-opt.selected { border-color:#4ade80; background:rgba(74,222,128,.1); box-shadow:0 0 15px rgba(74,222,128,.3); }
+.opt.unblock-opt.selected { border-color:#4a9eff; background:rgba(74,158,255,.1); box-shadow:0 0 15px rgba(74,158,255,.3); }
+.opt .opt-name { font-weight:bold; color:#fff; font-size:.95em; }
+.opt .opt-desc { font-size:.75em; color:#8aa9d6; margin-top:3px; }
+.opt .opt-reward { font-size:.8em; color:#4ade80; font-weight:bold; margin-top:5px; }
+.opt .opt-cost { font-size:.8em; color:#ffd700; font-weight:bold; margin-top:5px; }
+.opt.disabled { opacity:.4; cursor:not-allowed; }
+.opt.disabled:hover { border-color:#2e4a7d; background:rgba(10,25,50,.8); }
+
+.modal-actions { display:flex; gap:10px; margin-top:20px; }
+.modal-actions button { flex:1; }
+.btn-cancel {
+  background: linear-gradient(180deg,#4a5568,#2d3748) !important;
+  box-shadow: 0 4px 0 #1a202c, 0 6px 15px rgba(74,85,104,.4) !important;
+}
+.btn-cancel:hover:not(:disabled) {
+  box-shadow: 0 6px 0 #1a202c, 0 8px 20px rgba(74,85,104,.6) !important;
+}
+.btn-confirm {
+  background: linear-gradient(180deg,#22c55e,#15803d) !important;
+  box-shadow: 0 4px 0 #14532d, 0 6px 15px rgba(34,197,94,.4) !important;
+}
+.btn-confirm:hover:not(:disabled) {
+  box-shadow: 0 6px 0 #14532d, 0 8px 20px rgba(34,197,94,.6) !important;
+}
+.btn-confirm.unblock-btn {
+  background: linear-gradient(180deg,#3b82f6,#1d4ed8) !important;
+  box-shadow: 0 4px 0 #1e3a8a, 0 6px 15px rgba(59,130,246,.4) !important;
+}
+.btn-confirm.unblock-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 0 #1e3a8a, 0 8px 20px rgba(59,130,246,.6) !important;
+}
+
+.preview {
+  background:rgba(255,215,0,.08); border:1px dashed #ffd700;
+  border-radius:8px; padding:12px; text-align:center;
+  margin-top:15px; color:#c5d5ea; font-size:.9em;
+}
+.preview.unblock-preview { background:rgba(74,158,255,.08); border-color:#4a9eff; }
+.preview .amount { font-size:1.4em; color:#4ade80; font-weight:bold; }
+.preview .cost { font-size:1.4em; color:#ff5c5c; font-weight:bold; }
+.preview .mult { color:#ffd700; font-size:.85em; margin-top:3px; }
+.preview .combo { color:#4ade80; font-size:.85em; margin-top:3px; }
+.preview .hint { color:#8aa9d6; font-size:.8em; margin-top:6px; font-style:italic; }
+.preview .egg-mult { color:#e879f9; font-weight:bold; font-size:.95em; margin-top:5px; }
+
+/* ============================================
+   🥚 ПАСХАЛКА — кнопка-переключатель
+   ============================================ */
+#eggBtn {
+  position:fixed;
+  top:20px; right:20px;
+  z-index:200;
+  padding:12px 18px;
+  font-size:1.1em;
+  font-weight:bold;
+  border:none;
+  border-radius:50px;
+  cursor:pointer;
+  display:none;
+  align-items:center; gap:8px;
+  letter-spacing:1px;
+  transition: all .3s;
+  background: linear-gradient(135deg,#2d0b3f,#5b0f2e);
+  color:#e879f9;
+  border:2px solid #a855f7;
+  box-shadow: 0 0 25px rgba(168,85,247,.5);
+  animation: eggFloat 2.5s ease-in-out infinite;
+}
+#eggBtn.show { display:flex; }
+#eggBtn:hover {
+  transform:scale(1.08);
+  box-shadow: 0 0 40px rgba(232,121,249,.9);
+}
+#eggBtn.active {
+  background: linear-gradient(135deg,#e879f9,#a855f7);
+  color:#1a0f2e;
+  border-color:#fff;
+  box-shadow: 0 0 50px rgba(232,121,249,1), 0 0 80px rgba(168,85,247,.7);
+  animation: eggGlow 1.2s ease-in-out infinite;
+}
+@keyframes eggFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes eggGlow {
+  0%,100% { box-shadow: 0 0 30px rgba(232,121,249,.9), 0 0 60px rgba(168,85,247,.6); }
+  50% { box-shadow: 0 0 50px rgba(232,121,249,1), 0 0 100px rgba(168,85,247,.9); }
+}
+
+/* 🥚 Всплывающее уведомление при активации пасхалки */
+#eggToast {
+  position:fixed;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  background: linear-gradient(135deg,#2d0b3f,#5b0f2e);
+  border:3px solid #e879f9;
+  border-radius:20px;
+  padding:30px 40px;
+  z-index:300;
+  text-align:center;
+  box-shadow: 0 0 60px rgba(232,121,249,.9);
+  opacity:0;
+  transition: all .5s cubic-bezier(.68,-0.55,.27,1.55);
+  pointer-events:none;
+}
+#eggToast.show {
+  transform:translate(-50%,-50%) scale(1);
+  opacity:1;
+}
+#eggToast .egg-emoji {
+  font-size:4em;
+  animation: eggFloat 1s infinite;
+}
+#eggToast .egg-title {
+  color:#e879f9;
+  font-size:1.5em;
+  font-weight:bold;
+  margin:10px 0;
+  letter-spacing:2px;
+  text-shadow:0 0 20px rgba(232,121,249,.8);
+}
+#eggToast .egg-sub {
+  color:#d8b4fe;
+  font-size:.95em;
+}
+
+/* Скрываем кнопку пасхалки когда открыта модалка */
+body.modal-open #eggBtn { display:none !important; }
+</style>
+</head>
+<body>
+<button id="eggBtn" onclick="toggleEgg()" title="🥚 Пасхалка">
+  🥚 <span id="eggBtnLabel">ВКЛ +1000%</span>
+</button>
+
+<div id="eggToast">
+  <div class="egg-emoji">🥚</div>
+  <div class="egg-title">ПАСХАЛКА НАЙДЕНА!</div>
+  <div class="egg-sub">Режим «РКН ×10» разблокирован.<br>Кнопка появилась в правом верхнем углу.</div>
+</div>
+
+<div class="container">
+  <header>
+    <h1 id="headerTitle" onclick="headerClick()">⚡ РОСКОМНАДЗОР ⚡</h1>
+    <div class="sub">Официальный симулятор блокировок v6.3 · Найди пасхалку 🥚</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="label">💰 Бюджет</div><div class="value" id="money">0 ₽</div></div>
+    <div class="stat"><div class="label">🚫 Заблокировано</div><div class="value" id="blocked">0</div></div>
+    <div class="stat unb"><div class="label">🔓 Разблокировано</div><div class="value" id="unblocked">0</div></div>
+    <div class="stat kids"><div class="label">🧸 «Ради детей»</div><div class="value" id="kidsCount">0</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div class="left-column">
+      <div class="tabs">
+        <div class="tab active" id="tabBtnBlock" onclick="switchTab('block')">🎰 Блокировка</div>
+        <div class="tab" id="tabBtnUnblock" onclick="switchTab('unblock')">
+          🔓 Разблокировка
+          <span class="badge" id="unblockBadge" style="display:none">0</span>
+        </div>
+      </div>
+
+      <div class="panel active" id="panel-block">
+        <div class="roulette-box">
+          <div class="slot" id="slot">Нажми «КРУТИТЬ»</div>
+          <div class="result-info" id="result">Рулетка готова к запуску. Судьба интернета в твоих руках.</div>
+          <button id="spinBtn" onclick="spin()">🎰 КРУТИТЬ РУЛЕТКУ</button>
+          <div class="log" id="log">
+            <h3>📜 Журнал</h3>
+            <div id="logList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-unblock">
+        <div class="unblock-box">
+          <h2>🔓 Заявки на разблокировку</h2>
+          <div class="sub">Клик по ресурсу — открыть постановление. Владельцы жалуются, приходится откатывать.</div>
+          <div class="blocked-list" id="blockedList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop">
+      <h2>🛒 Магазин «РКН Маркет»</h2>
+      <div id="shopList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>🚫 ПОСТАНОВЛЕНИЕ О БЛОКИРОВКЕ</h2>
+    <div class="target-name" id="modalTarget">
+      Ресурс: <span id="modalTargetName">...</span>
+      <small id="modalTargetId">ID: —</small>
+    </div>
+    <div class="section-title">Метод блокировки</div>
+    <div class="options-grid" id="methodOptions"></div>
+    <div class="section-title">Причина / основание</div>
+    <div class="options-grid" id="reasonOptions"></div>
+    <div class="preview" id="preview">Выбери метод и причину...</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cancelBlock()">❌ Отменить</button>
+      <button class="btn-confirm" id="confirmBtn" onclick="confirmBlock()" disabled>✅ ЗАБЛОКИРОВАТЬ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="unblockModalOverlay">
+  <div class="modal unblock-modal">
+    <h2>🔓 ПОСТАНОВЛЕНИЕ О РАЗБЛОКИРОВКЕ</h2>
+    <div class="target-name">
+      Ресурс: <span id="unblockTargetName">...</span>
+      <small id="unblockTargetId">ID: —</small>
+    </div>
+    <div class="section-title">Основание для разблокировки</div>
+    <div class="options-grid" id="unblockReasonOptions"></div>
+    <div class="preview unblock-preview" id="unblockPreview">Выбери основание...</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cancelUnblock()">❌ Отменить заявку</button>
+      <button class="btn-confirm unblock-btn" id="confirmUnblockBtn" onclick="confirmUnblock()" disabled>🔓 РАЗБЛОКИРОВАТЬ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  🥚 ПАСХАЛКА
+// ============================================================
+const egg = {
+  unlocked: false,   // найдена ли пасхалка
+  active: false,     // включён ли режим ×10
+  multiplier: 10,    // +1000% = ×10
+  clickCount: 0,
+  secretBuffer: '',
+  secret: 'rkn',
+};
+
+// Секретная последовательность клавиш
+document.addEventListener('keydown', (e) => {
+  // Игнорируем, если пользователь что-то вводит (на будущее)
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  egg.secretBuffer += e.key.toLowerCase();
+  // Держим только последние N символов
+  if (egg.secretBuffer.length > egg.secret.length) {
+    egg.secretBuffer = egg.secretBuffer.slice(-egg.secret.length);
+  }
+  if (egg.secretBuffer === egg.secret) {
+    unlockEgg();
+    egg.secretBuffer = '';
+  }
+});
+
+// Клик по заголовку 5 раз
+function headerClick() {
+  if (egg.unlocked) return;
+  egg.clickCount++;
+  if (egg.clickCount >= 5) {
+    unlockEgg();
+    egg.clickCount = 0;
+  }
+}
+
+// Открыть пасхалку
+function unlockEgg() {
+  if (egg.unlocked) return;
+  egg.unlocked = true;
+
+  // Показываем кнопку
+  const btn = document.getElementById('eggBtn');
+  btn.classList.add('show');
+
+  // Всплывающий тост
+  const toast = document.getElementById('eggToast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2800);
+
+  addLog('🥚 <span class="egg">ПАСХАЛКА НАЙДЕНА! Режим ×10 доступен в правом верхнем углу.</span>');
+
+  // Скрываем кнопку когда открыта модалка
+  observeModals();
+}
+
+// Переключить режим ×10
+function toggleEgg() {
+  if (!egg.unlocked) return;
+  egg.active = !egg.active;
+
+  const btn = document.getElementById('eggBtn');
+  const label = document.getElementById('eggBtnLabel');
+
+  if (egg.active) {
+    btn.classList.add('active');
+    label.textContent = 'ВКЛ ×10 🎉';
+    document.body.classList.add('egg-active');
+    addLog('🥚 <span class="egg">Режим «РКН ×10» ВКЛЮЧЁН! +1000% к деньгам.</span>');
+  } else {
+    btn.classList.remove('active');
+    label.textContent = 'ВКЛ +1000%';
+    document.body.classList.remove('egg-active');
+    addLog('🥚 <span class="egg" style="color:#8aa9d6">Режим «РКН ×10» выключен.</span>');
+  }
+  updateUI();
+}
+
+// Скрытие кнопки пасхалки при открытой модалке
+function observeModals() {
+  const modalOverlay = document.getElementById('modalOverlay');
+  const unblockModalOverlay = document.getElementById('unblockModalOverlay');
+  const check = () => {
+    const anyOpen = modalOverlay.classList.contains('active') ||
+                    unblockModalOverlay.classList.contains('active');
+    document.body.classList.toggle('modal-open', anyOpen);
+  };
+  const obs = new MutationObserver(check);
+  obs.observe(modalOverlay, { attributes:true, attributeFilter:['class'] });
+  obs.observe(unblockModalOverlay, { attributes:true, attributeFilter:['class'] });
+}
+
+// ============================================================
+//  СОСТОЯНИЕ
+// ============================================================
+const state = {
+  money: 0,
+  blockedCount: 0,
+  unblockedCount: 0,
+  kidsCount: 0,
+  pool: 100000,
+  autoSpin: false,
+  boughtItems: new Set(),
+  spinning: false,
+  current: { name:null, id:null, method:null, reason:null, isReal:false },
+  blocked: [],
+  currentUnblockUid: null,
+  currentUnblockReason: null,
+  uidCounter: 1,
+};
+
+// ---- РЕСУРСЫ ----
+const realNames = [
+  "ВКонтакте","Одноклассники","Telegram","WhatsApp","Facebook",
+  "Instagram","Twitter / X","TikTok","Snapchat","Discord",
+  "Reddit","Pinterest","LinkedIn","Threads","Viber","Signal",
+  "WeChat","Line","Tumblr","Mastodon",
+  "YouTube","Twitch","Netflix","Spotify","Hulu","Disney+",
+  "HBO Max","Apple TV+","Кинопоиск","Иви","Okko","Wink",
+  "Vimeo","Rutube",
+  "Google","Yandex","Bing","DuckDuckGo","Yahoo!","Baidu",
+  "Wikipedia","Amazon","eBay","AliExpress","Ozon","Wildberries",
+  "Steam","Epic Games","PlayStation Network","Xbox Live",
+  "Roblox","Minecraft","Fortnite","GTA Online",
+  "Tinder","Bumble","OnlyFans","Patreon","GitHub",
+  "Stack Overflow","ChatGPT","Claude","Notion",
+  "Figma","Dropbox","Google Drive","iCloud","ProtonMail",
+  "4chan","Tor Browser","NordVPN",
+];
+
+const fictionalNames = [
+  "Мордокнига","Твиттер-X","Гугель","Яху!","Амазонка","Фейсбук",
+  "Телеграфъ","Ватсапп","Инстаграмм","ТикТок-Ток","Ютубчик",
+  "Дискордик","Реддит","Пинтерест","Снапчат","Спотифайка",
+  "Нетфликсик","Твич-Тв","Скайп-Он","Зум-Зум","Википедик",
+  "Мираксис","Кубик","Смешарик-ТВ","Мультик-Лэнд","Детский-Мир",
+  "Сказкин-Дом","Познавайка","Лапушка.ру","Пушистик.онлайн",
+  "Зайка-ТВ","Пчелка-Майл","Веселый-Бук","Школьник-Нет",
+  "Юный-Хакер","Будущий-Программист","Аниме-Рай","Кото-Хаб",
+  "Мемо-Теку","Смех-До-Слез","Хомяк-Тьюб","Бублик-Соц",
+  "Квазимодо.нет","Пузырь.онлайн","Барабулька.ру","Чирик-Чат",
+  "Печенюшка.ком","Вафля-ТВ","Сгущенка.нет","Мурзилка-Медиа",
+];
+
+const prefixes = ["Всё","Мега","Супер","Техно","Кибер","Нет","Да","Нео","Гипер","Эко","Он","Авто","Медиа","Лайф","Глобал","Фри","Соц","Три","Туб","Бук","Малыш","Детск","Юниор"];
+const roots = ["соцсеть","мессенджер","форум","портал","сервис","маркет","трекер","стрим","блог","чат","почта","игры","карты","облако","вики","новости","радио","тв","видео","хостинг","мультики","игрушки","сказки"];
+const tlds = [".com",".ru",".io",".net",".org",".tv",".app",".site",".online",".xyz",".info",".gg",".kids",".fun"];
+
+function randomResource() {
+  const roll = Math.random();
+  if (roll < 0.45) return { name: realNames[Math.floor(Math.random()*realNames.length)], isReal:true };
+  if (roll < 0.80) return { name: fictionalNames[Math.floor(Math.random()*fictionalNames.length)], isReal:false };
+  const a = prefixes[Math.floor(Math.random()*prefixes.length)];
+  const b = roots[Math.floor(Math.random()*roots.length)];
+  const c = tlds[Math.floor(Math.random()*tlds.length)];
+  return { name: a+b+c, isReal:false };
+}
+
+function randomId() {
+  return "ID-" + Math.floor(Math.random()*900000+100000) + "-" + Math.floor(Math.random()*9000+1000);
+}
+
+const methods = [
+  { id:"dns",   name:"DNS-подмена",             base:5000,   desc:"просто и быстро",     emoji:"🌐" },
+  { id:"ip",    name:"Блокировка по IP",        base:12000,  desc:"жёстко и надёжно",     emoji:"📡" },
+  { id:"dpi",   name:"DPI-фильтр",              base:25000,  desc:"тонкая работа",        emoji:"🔍" },
+  { id:"tspu",  name:"Полная блокировка ТСПУ",  base:60000,  desc:"тотальный контроль",   emoji:"🖥️" },
+  { id:"court", name:"Через суд",               base:90000,  desc:"долго, но официально", emoji:"⚖️" },
+  { id:"extr",  name:"Признание экстремистским",base:150000, desc:"легендарный метод",    emoji:"💀" },
+];
+
+const reasons = [
+  { id:"kids",    name:"🛡️ Защита детей",         bonus:1.5, desc:"главный аргумент РКН",  kids:true, mult:{tspu:1.4, extr:1.3} },
+  { id:"drugs",   name:"💊 Пропаганда наркотиков", bonus:1.2, desc:"классика жанра" },
+  { id:"extrem",  name:"🔥 Экстремизм",            bonus:1.3, desc:"универсальная причина", mult:{extr:1.5} },
+  { id:"fake",    name:"📰 Фейки",                bonus:1.1, desc:"против правды не попрёшь" },
+  { id:"lgbt",    name:"🏳️‍🌈 Пропаганда",           bonus:1.25, desc:"свежая причина" },
+  { id:"vpn",     name:"🔐 Обход блокировок",      bonus:1.15, desc:"запрещено запрещать" },
+  { id:"suicide", name:"⚠️ Призывы к суициду",    bonus:1.35, desc:"серьёзно, но эффективно" },
+  { id:"terror",  name:"💣 Терроризм",            bonus:1.6,  desc:"максимальная жёсткость", mult:{tspu:1.5, extr:1.6} },
+  { id:"none",    name:"🤷 Без причины",          bonus:0.5,  desc:"просто потому что можем" },
+];
+
+const unblockReasons = [
+  { id:"settle", name:"🤝 Мировое соглашение",        costMult:0.3, desc:"договорились полюбовно",         emoji:"🤝" },
+  { id:"court",  name:"⚖️ Решение суда",             costMult:0.5, desc:"суд встал на сторону владельца", emoji:"⚖️" },
+  { id:"request",name:"🙏 Личная просьба",            costMult:0.7, desc:"по знакомству",                  emoji:"🙏" },
+  { id:"media",  name:"📢 Давление общественности",   costMult:0.8, desc:"шум в СМИ",                      emoji:"📢" },
+  { id:"mistake",name:"📝 Ошибка инспектора",         costMult:1.2, desc:"свой же накосячил",              emoji:"📝" },
+  { id:"bribe",  name:"💰 Договориться неофициально", costMult:1.5, desc:"дорого, зато быстро",            emoji:"💰" },
+];
+
+const shopItems = [
+  { id:"coffee",  name:"☕ Кофе для инспектора",   price:10000,   desc:"+20% к награде" },
+  { id:"intern",  name:"👨‍💼 Стажёр-инспектор",     price:50000,   desc:"+3000 ₽ к каждой блокировке" },
+  { id:"auto",    name:"🤖 Автоматическая рулетка", price:250000,  desc:"Крутит сама каждые 2 сек" },
+  { id:"kidsdept",name:"🧸 Отдел по делам детей",  price:400000,  desc:"+50% к награде за «Защиту детей»" },
+  { id:"lawyer",  name:"⚖️ Свой юрист",            price:500000,  desc:"Награда ×2 · Разблокировка дешевле" },
+  { id:"server",  name:"🖥️ Свой сервер ТСПУ",      price:1500000, desc:"+30% к награде ТСПУ/суд" },
+  { id:"yacht",   name:"🛥️ Яхта «Мирный интернет»",price:5000000, desc:"Престиж. Просто яхта." },
+  { id:"univ",    name:"🏝️ Остров «Изолированный Рунет»",price:50000000,desc:"Полная автономия. Мечта." },
+];
+
+// ---- DOM ----
+const slot = document.getElementById('slot');
+const resultEl = document.getElementById('result');
+const logList = document.getElementById('logList');
+const modalOverlay = document.getElementById('modalOverlay');
+const methodOptionsEl = document.getElementById('methodOptions');
+const reasonOptionsEl = document.getElementById('reasonOptions');
+const previewEl = document.getElementById('preview');
+const confirmBtn = document.getElementById('confirmBtn');
+const modalTarget = document.getElementById('modalTarget');
+const unblockModalOverlay = document.getElementById('unblockModalOverlay');
+const blockedListEl = document.getElementById('blockedList');
+const unblockReasonOptionsEl = document.getElementById('unblockReasonOptions');
+const unblockPreviewEl = document.getElementById('unblockPreview');
+const confirmUnblockBtn = document.getElementById('confirmUnblockBtn');
+const spinBtn = document.getElementById('spinBtn');
+
+function formatMoney(n) {
+  return n.toLocaleString('ru-RU') + ' ₽';
+}
+
+function updateUI() {
+  document.getElementById('money').textContent = formatMoney(state.money);
+  document.getElementById('blocked').textContent = state.blockedCount.toLocaleString('ru-RU');
+  document.getElementById('unblocked').textContent = state.unblockedCount.toLocaleString('ru-RU');
+  document.getElementById('kidsCount').textContent = state.kidsCount.toLocaleString('ru-RU');
+  renderShop();
+  renderBlockedList();
+  updateUnblockBadge();
+}
+
+function updateUnblockBadge() {
+  const badge = document.getElementById('unblockBadge');
+  if (state.blocked.length > 0) {
+    badge.style.display = 'inline-block';
+    badge.textContent = state.blocked.length;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function addLog(html) {
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = html;
+  logList.prepend(div);
+  if (logList.children.length > 40) logList.lastChild.remove();
+}
+
+// ---- ВКЛАДКИ ----
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'block') {
+    document.getElementById('tabBtnBlock').classList.add('active');
+    document.getElementById('panel-block').classList.add('active');
+  } else {
+    document.getElementById('tabBtnUnblock').classList.add('active');
+    document.getElementById('panel-unblock').classList.add('active');
+  }
+}
+
+// ---- РУЛЕТКА ----
+function spin() {
+  if (state.spinning) return;
+  if (modalOverlay.classList.contains('active')) return;
+  if (unblockModalOverlay.classList.contains('active')) return;
+
+  state.spinning = true;
+  spinBtn.disabled = true;
+
+  slot.classList.remove('win', 'real-win');
+  slot.classList.add('spinning');
+  resultEl.innerHTML = '🎲 Определяем судьбу ресурса...';
+
+  let ticks = 0;
+  const interval = setInterval(() => {
+    slot.textContent = randomResource().name;
+    ticks++;
+    if (ticks >= 25) {
+      clearInterval(interval);
+      finishSpin();
+    }
+  }, 60);
+}
+
+function finishSpin() {
+  slot.classList.remove('spinning');
+  const resource = randomResource();
+  const id = randomId();
+  slot.textContent = resource.name;
+
+  state.current = { name: resource.name, id, method: null, reason: null, isReal: resource.isReal };
+
+  const typeLabel = resource.isReal
+    ? '<span class="real-tag">🌍 Настоящий ресурс</span>'
+    : '🎭 Выдуманный ресурс';
+
+  resultEl.innerHTML = `Выпал ресурс: <b style="color:${resource.isReal ? '#4a9eff' : '#ff5c5c'}">${resource.name}</b><br>${typeLabel}. Выбери метод и причину.`;
+
+  openModal();
+}
+
+function endSpinSession() {
+  state.spinning = false;
+  spinBtn.disabled = false;
+  if (state.autoSpin) setTimeout(spin, 800);
+}
+
+// ---- МОДАЛКА БЛОКИРОВКИ ----
+function openModal() {
+  document.getElementById('modalTargetName').textContent = state.current.name;
+  document.getElementById('modalTargetId').textContent = state.current.id + (state.current.isReal ? ' · 🌍 настоящий' : ' · 🎭 выдуманный');
+  modalTarget.classList.toggle('real', state.current.isReal);
+  renderMethodOptions();
+  renderReasonOptions();
+  updatePreview();
+  modalOverlay.classList.add('active');
+}
+
+function renderMethodOptions() {
+  methodOptionsEl.innerHTML = '';
+  methods.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'opt';
+    if (state.current.method === m.id) div.classList.add('selected');
+    div.innerHTML = `
+      <div class="opt-name">${m.emoji} ${m.name}</div>
+      <div class="opt-desc">${m.desc}</div>
+      <div class="opt-reward">база: +${formatMoney(m.base)}</div>
+    `;
+    div.onclick = () => { state.current.method = m.id; renderMethodOptions(); updatePreview(); };
+    methodOptionsEl.appendChild(div);
+  });
+}
+
+function renderReasonOptions() {
+  reasonOptionsEl.innerHTML = '';
+  reasons.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'opt';
+    if (r.kids) div.classList.add('kids-opt');
+    if (state.current.reason === r.id) div.classList.add('selected');
+    div.innerHTML = `
+      <div class="opt-name">${r.name}</div>
+      <div class="opt-desc">${r.desc}</div>
+      <div class="opt-reward">множитель ×${r.bonus.toFixed(2)}</div>
+    `;
+    div.onclick = () => { state.current.reason = r.id; renderReasonOptions(); updatePreview(); };
+    reasonOptionsEl.appendChild(div);
+  });
+}
+
+function calcReward() {
+  if (!state.current.method || !state.current.reason) return null;
+  const m = methods.find(x => x.id === state.current.method);
+  const r = reasons.find(x => x.id === state.current.reason);
+
+  let reward = m.base * r.bonus;
+  const bonuses = [];
+
+  if (r.mult && r.mult[m.id]) {
+    reward *= r.mult[m.id];
+    bonuses.push(`комбо «${r.name}» +${m.name}: ×${r.mult[m.id]}`);
+  }
+  if (state.boughtItems.has('server') && (m.id === 'tspu' || m.id === 'court')) {
+    reward *= 1.3; bonuses.push('сервер ТСПУ: ×1.3');
+  }
+  if (state.boughtItems.has('kidsdept') && r.id === 'kids') {
+    reward *= 1.5; bonuses.push('отдел по делам детей: ×1.5');
+  }
+  if (state.boughtItems.has('coffee')) { reward *= 1.2; bonuses.push('кофе: ×1.2'); }
+  if (state.boughtItems.has('lawyer')) { reward *= 2; bonuses.push('юрист: ×2'); }
+
+  let flatBonus = 0;
+  if (state.boughtItems.has('intern')) { flatBonus = 3000; bonuses.push('стажёр: +3 000 ₽'); }
+  if (state.current.isReal) { reward *= 1.25; bonuses.push('🌍 настоящий ресурс: ×1.25'); }
+
+  // 🥚 ПАСХАЛКА: ×10 к финальной награде
+  if (egg.active) {
+    reward *= egg.multiplier;
+    bonuses.push(`🥚 ПАСХАЛКА: ×${egg.multiplier}`);
+  }
+
+  reward = Math.round(reward) + flatBonus;
+  return { reward, bonuses, isKids: r.kids, eggActive: egg.active };
+}
+
+function updatePreview() {
+  const res = calcReward();
+  if (!res) {
+    previewEl.innerHTML = 'Выбери <b>метод</b> и <b>причину</b>...';
+    confirmBtn.disabled = true;
+    return;
+  }
+  confirmBtn.disabled = false;
+  let html = `<div>Итого начислено:</div><div class="amount">+${formatMoney(res.reward)}</div>`;
+  if (res.isKids) html += `<div class="combo">🧸 Ради детей — благородное дело!</div>`;
+  if (res.eggActive) html += `<div class="egg-mult">🥚 РЕЖИМ ×10 АКТИВЕН!</div>`;
+  if (res.bonuses.length) html += `<div class="mult">Бонусы: ${res.bonuses.join(' · ')}</div>`;
+  previewEl.innerHTML = html;
+}
+
+function cancelBlock() {
+  modalOverlay.classList.remove('active');
+  resultEl.innerHTML = '❌ Блокировка отменена. Ресурс остался на свободе.';
+  addLog(`❌ <b style="color:#8aa9d6">${state.current.name}</b> — блокировка отменена`);
+  state.current = { name:null, id:null, method:null, reason:null, isReal:false };
+  endSpinSession();
+}
+
+function confirmBlock() {
+  const res = calcReward();
+  if (!res) return;
+  const m = methods.find(x => x.id === state.current.method);
+  const r = reasons.find(x => x.id === state.current.reason);
+
+  state.money += res.reward;
+  state.blockedCount++;
+  state.pool = Math.max(0, state.pool - 1);
+  if (r.kids) state.kidsCount++;
+
+  state.blocked.push({
+    uid: state.uidCounter++,
+    name: state.current.name,
+    id: state.current.id,
+    methodId: m.id,
+    methodName: m.name,
+    methodEmoji: m.emoji,
+    reasonId: r.id,
+    reasonName: r.name,
+    reward: res.reward,
+    isReal: state.current.isReal,
+    kids: r.kids,
+    ts: Date.now(),
+  });
+
+  slot.classList.add('win');
+  if (state.current.isReal) slot.classList.add('real-win');
+
+  const eggTag = res.eggActive ? ' <span class="egg-tag">🥚 ×10</span>' : '';
+  resultEl.innerHTML = `
+    🚫 Заблокирован: <b style="color:${state.current.isReal ? '#4a9eff' : '#ff5c5c'}">${state.current.name}</b>
+    ${state.current.isReal ? '<span class="real-tag">🌍</span>' : ''}${eggTag}<br>
+    ${m.emoji} ${m.name} · ${r.name}<br>
+    Начислено: <span class="reward">+${formatMoney(res.reward)}</span>
+  `;
+
+  const cls = state.current.isReal ? 'r' : 'b';
+  const eggMark = res.eggActive ? ' <span class="egg">🥚×10</span>' : '';
+  const logHtml = r.kids
+    ? `🧸 <span class="${cls}">${state.current.name}</span> — <span class="k">${r.name}</span> (${m.name}) <span class="g">+${formatMoney(res.reward)}</span>${eggMark}`
+    : `🚫 <span class="${cls}">${state.current.name}</span> — ${m.name} / ${r.name} <span class="g">+${formatMoney(res.reward)}</span>${eggMark}`;
+  addLog(logHtml);
+
+  updateUI();
+  modalOverlay.classList.remove('active');
+  state.current = { name:null, id:null, method:null, reason:null, isReal:false };
+  endSpinSession();
+}
+
+// ---- РАЗБЛОКИРОВКА ----
+function renderBlockedList() {
+  blockedListEl.innerHTML = '';
+  if (state.blocked.length === 0) {
+    blockedListEl.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🎉</div>
+        Пока никого не заблокировал.<br>
+        Начни с вкладки «🎰 Блокировка».
+      </div>`;
+    return;
+  }
+
+  for (let i = state.blocked.length - 1; i >= 0; i--) {
+    const item = state.blocked[i];
+    const div = document.createElement('div');
+    div.className = 'blocked-item';
+    if (item.isReal) div.classList.add('real');
+    if (item.kids) div.classList.add('kids-blocked');
+
+    let minCost = Math.round(item.reward * 0.3);
+    if (state.boughtItems.has('lawyer')) minCost = Math.round(minCost * 0.75);
+    const canAffordSome = state.money >= minCost;
+
+    div.innerHTML = `
+      <div class="info">
+        <div class="bname">${item.name} ${item.isReal ? '🌍' : ''} ${item.kids ? '🧸' : ''}</div>
+        <div class="bmeta">
+          <span class="method">${item.methodEmoji} ${item.methodName}</span>
+          · <span class="reason">${item.reasonName}</span>
+          · от <b style="color:${canAffordSome ? '#4ade80' : '#ff9d9d'}">${formatMoney(minCost)}</b>
+        </div>
+      </div>
+      <div class="breward">+${formatMoney(item.reward)}</div>
+      <div class="unlock-arrow">🔓</div>
+    `;
+    div.onclick = () => openUnblockModal(item.uid);
+    blockedListEl.appendChild(div);
+  }
+}
+
+function findBlockedByUid(uid) {
+  return state.blocked.find(b => b.uid === uid) || null;
+}
+
+function openUnblockModal(uid) {
+  const item = findBlockedByUid(uid);
+  if (!item) return;
+
+  state.currentUnblockUid = uid;
+  state.currentUnblockReason = null;
+
+  document.getElementById('unblockTargetName').textContent = item.name;
+  document.getElementById('unblockTargetId').textContent =
+    `${item.id} · заблокирован как «${item.reasonName}»`;
+
+  renderUnblockReasons();
+  updateUnblockPreview();
+  unblockModalOverlay.classList.add('active');
+}
+
+function getUnblockCost(item, reason) {
+  let cost = Math.round(item.reward * reason.costMult);
+  if (state.boughtItems.has('lawyer')) cost = Math.round(cost * 0.75);
+  return cost;
+}
+
+function renderUnblockReasons() {
+  unblockReasonOptionsEl.innerHTML = '';
+  const item = state.currentUnblockUid ? findBlockedByUid(state.currentUnblockUid) : null;
+  if (!item) return;
+
+  unblockReasons.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'opt unblock-opt';
+    if (state.currentUnblockReason === r.id) div.classList.add('selected');
+
+    const cost = getUnblockCost(item, r);
+    const canAfford = state.money >= cost;
+    if (!canAfford) div.classList.add('disabled');
+
+    div.innerHTML = `
+      <div class="opt-name">${r.emoji} ${r.name}</div>
+      <div class="opt-desc">${r.desc}</div>
+      <div class="opt-cost">−${formatMoney(cost)}${state.boughtItems.has('lawyer') ? ' (юрист −25%)' : ''}</div>
+    `;
+
+    div.onclick = () => {
+      if (!canAfford) {
+        unblockPreviewEl.innerHTML = `<div style="color:#ff5c5c;font-weight:bold">Недостаточно средств</div>
+          <div class="mult">Нужно: ${formatMoney(cost)} · у тебя: ${formatMoney(state.money)}</div>
+          <div class="hint">Заработай ещё блокировок или выбери подешевле.</div>`;
+        confirmUnblockBtn.disabled = true;
+        return;
+      }
+      state.currentUnblockReason = r.id;
+      renderUnblockReasons();
+      updateUnblockPreview();
+    };
+    unblockReasonOptionsEl.appendChild(div);
+  });
+}
+
+function calcUnblockCost() {
+  if (!state.currentUnblockUid || !state.currentUnblockReason) return null;
+  const item = findBlockedByUid(state.currentUnblockUid);
+  if (!item) return null;
+  const r = unblockReasons.find(x => x.id === state.currentUnblockReason);
+  if (!r) return null;
+  const cost = getUnblockCost(item, r);
+  return { cost, reason: r, item };
+}
+
+function updateUnblockPreview() {
+  const res = calcUnblockCost();
+  if (!res) {
+    unblockPreviewEl.innerHTML = 'Выбери <b>основание</b> для разблокировки...';
+    confirmUnblockBtn.disabled = true;
+    return;
+  }
+  if (state.money < res.cost) {
+    unblockPreviewEl.innerHTML = `Недостаточно средств: нужно <span class="cost">−${formatMoney(res.cost)}</span>`;
+    confirmUnblockBtn.disabled = true;
+    return;
+  }
+  confirmUnblockBtn.disabled = false;
+  let html = `<div>К списанию из бюджета:</div>
+              <div class="cost">−${formatMoney(res.cost)}</div>
+              <div class="mult">Основание: ${res.reason.emoji} ${res.reason.name}</div>`;
+  if (res.item.kids) {
+    html += `<div class="combo" style="color:#ffd700">🧸 Заблокирован «ради детей» — а теперь откат...</div>`;
+  }
+  unblockPreviewEl.innerHTML = html;
+}
+
+function cancelUnblock() {
+  unblockModalOverlay.classList.remove('active');
+  state.currentUnblockUid = null;
+  state.currentUnblockReason = null;
+  if (state.autoSpin && !state.spinning) setTimeout(spin, 800);
+}
+
+function confirmUnblock() {
+  const res = calcUnblockCost();
+  if (!res) return;
+  if (state.money < res.cost) return;
+
+  const { cost, reason, item } = res;
+  state.money -= cost;
+  state.unblockedCount++;
+
+  const idx = state.blocked.findIndex(b => b.uid === state.currentUnblockUid);
+  if (idx !== -1) state.blocked.splice(idx, 1);
+
+  const cls = item.isReal ? 'r' : 'b';
+  let logHtml = `🔓 <span class="${cls}">${item.name}</span> разблокирован — ${reason.emoji} ${reason.name} <span class="y">−${formatMoney(cost)}</span>`;
+  if (item.kids) logHtml += ` <span class="k">(🧸 передумали!)</span>`;
+  addLog(logHtml);
+
+  unblockModalOverlay.classList.remove('active');
+  state.currentUnblockUid = null;
+  state.currentUnblockReason = null;
+
+  updateUI();
+
+  const tab = document.getElementById('tabBtnUnblock');
+  tab.style.transition = 'background .3s';
+  tab.style.background = 'rgba(74,158,255,.25)';
+  setTimeout(() => { tab.style.background = ''; }, 400);
+
+  if (state.autoSpin && !state.spinning) setTimeout(spin, 800);
+}
+
+// ---- МАГАЗИН ----
+function renderShop() {
+  const el = document.getElementById('shopList');
+  el.innerHTML = '';
+  shopItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    if (state.boughtItems.has(item.id)) div.classList.add('owned');
+    else if (state.money < item.price) div.classList.add('locked');
+    div.innerHTML = `
+      <div class="name">${item.name}</div>
+      <div class="desc">${item.desc}</div>
+      <div class="price">${state.boughtItems.has(item.id) ? '✅ Куплено' : formatMoney(item.price)}</div>
+    `;
+    if (!state.boughtItems.has(item.id) && state.money >= item.price) {
+      div.onclick = () => buyItem(item);
+    }
+    el.appendChild(div);
+  });
+}
+
+function buyItem(item) {
+  if (state.money < item.price || state.boughtItems.has(item.id)) return;
+  state.money -= item.price;
+  state.boughtItems.add(item.id);
+  if (item.id === 'auto') {
+    state.autoSpin = true;
+    if (!state.spinning && !modalOverlay.classList.contains('active') && !unblockModalOverlay.classList.contains('active')) {
+      setTimeout(spin, 500);
+    }
+  }
+  addLog(`🛒 Куплено: <span class="g">${item.name}</span> — ${formatMoney(item.price)}`);
+  updateUI();
+}
+
+// ---- СТАРТ ----
+updateUI();
+addLog('🎉 Симулятор запущен. Бюджет: 0 ₽. Крути рулетку!');
+addLog('💡 Крути → выбери метод → выбери причину → подтверди.');
+addLog('🌍 За блокировку <b>настоящего</b> ресурса — бонус ×1.25.');
+addLog('🔓 Разблокировка — во вкладке сверху, клик по ресурсу.');
+addLog('🥚 <span style="color:#8aa9d6">Где-то спрятана пасхалка... Попробуй набрать <b>rkn</b> или потыкай заголовок.</span>');
+</script>
+</body>
+</html>
